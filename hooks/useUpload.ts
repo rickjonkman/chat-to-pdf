@@ -7,8 +7,9 @@ import {v4 as uuidv4} from 'uuid';
 import {getDownloadURL, ref, uploadBytesResumable} from "@firebase/storage";
 import {db, storage} from "@/firebase";
 import {doc, setDoc} from "@firebase/firestore";
+import {generateEmbeddings} from "@/actions/generateEmbeddings";
 
-const enum StatusText {
+export enum StatusText {
     UPLOADING = "Uploading file...",
     UPLOADED = "File uploaded successfully",
     SAVING = "Saving file...",
@@ -49,11 +50,14 @@ function useUpload() {
             await setDoc(doc(db, "users", user.id, "files", fileIdToUploadTo), {
                 name: file.name,
                 size: file.size,
+                type: file.type,
                 downloadUrl: downloadURL,
+                ref: uploadTask.snapshot.ref.fullPath,
                 createdAt: new Date().toISOString(),
             })
 
             setStatus(StatusText.GENERATING);
+            await generateEmbeddings(fileIdToUploadTo);
             setFileId(fileIdToUploadTo);
         });
     }
