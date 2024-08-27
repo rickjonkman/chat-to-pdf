@@ -1,22 +1,22 @@
 import {ChatOpenAI} from "@langchain/openai";
 import {PDFLoader} from "@langchain/community/document_loaders/fs/pdf";
-import {RecursiveCharacterTextSplitter} from "@langchain/textsplitters";
+import {RecursiveCharacterTextSplitter} from "langchain/text_splitter";
 import {OpenAIEmbeddings} from "@langchain/openai";
-import {createStuffDocumentsChain} from "langchain/chains/combine_documents";
-import {ChatPromptTemplate} from "@langchain/core/prompts";
-import {createRetrievalChain} from "langchain/chains/retrieval";
-import {createHistoryAwareRetriever} from "langchain/chains/history_aware_retriever";
-import {HumanMessage, AIMessage} from "@langchain/core/messages";
+// import {createStuffDocumentsChain} from "langchain/chains/combine_documents";
+// import {ChatPromptTemplate} from "@langchain/core/prompts";
+// import {createRetrievalChain} from "langchain/chains/retrieval";
+// import {createHistoryAwareRetriever} from "langchain/chains/history_aware_retriever";
+// import {HumanMessage, AIMessage} from "@langchain/core/messages";
 import pineconeClient from "./pinecone";
 import {PineconeStore} from "@langchain/pinecone";
-import {PineconeConflictError} from "@pinecone-database/pinecone/dist/errors";
+// import {PineconeConflictError} from "@pinecone-database/pinecone/dist/errors";
 import {Index, RecordMetadata} from "@pinecone-database/pinecone";
 import {adminDb} from "@/firebaseAdmin";
 import {auth} from "@clerk/nextjs/server";
 
 const model = new ChatOpenAI({
     apiKey: process.env.OPENAI_API_KEY,
-    modelName: "gpt-4o",
+    modelName: "gpt-3.5-turbo",
 })
 
 export const indexName = "rixdev";
@@ -24,9 +24,7 @@ export const indexName = "rixdev";
 export async function generateDocs(docId: string) {
     const { userId } = await auth();
 
-    if (!userId) {
-        throw new Error("User not found");
-    }
+    if (!userId) throw new Error("User not found");
 
     console.log("=== Loading Fetching download URL from Firebase ===");
     const firebaseRef = await adminDb
@@ -38,14 +36,11 @@ export async function generateDocs(docId: string) {
 
     const downloadUrl = firebaseRef.data()?.downloadUrl;
 
-    if (!downloadUrl) {
-        throw new Error("Download URL not found");
-    }
+    if (!downloadUrl) throw new Error("Download URL not found");
 
     console.log((`=== Loading PDF from ${downloadUrl} ===`));
 
     const response = await fetch(downloadUrl);
-
     const data = await response.blob();
 
     console.log("=== Loading PDF Document ===");
@@ -68,7 +63,7 @@ async function namespaceExists(index: Index<RecordMetadata>, namespace: string) 
     return namespaces?.[namespace] !== undefined;
 }
 
-export async function generateEmbeddingsPineconeVectorStore(docId: string) {
+export async function generateEmbeddingsInPineconeVectorStore(docId: string) {
     const {userId} = await auth();
 
     if (!userId) {
@@ -84,7 +79,7 @@ export async function generateEmbeddingsPineconeVectorStore(docId: string) {
     const index = await pineconeClient.index(indexName);
     const namespaceAlreadyExists = await namespaceExists(index, docId);
 
-    if (!namespaceAlreadyExists) {
+    if (namespaceAlreadyExists) {
         console.log(`=== Namespace ${docId} already exists, reusing existing embeddings... ===`);
 
         pineconeVectorStore = await PineconeStore.fromExistingIndex(embeddings, {
@@ -94,7 +89,7 @@ export async function generateEmbeddingsPineconeVectorStore(docId: string) {
 
         return pineconeVectorStore;
     } else {
-        console.log(`=== Namespace ${docId} does not exist, generating embeddings... ===`);
+        console.log(`=== If the namespace does not exist, download the PDF from firestore via the stored Download URL & generate embeddings to store in the Pinecone Vector store ===`);
 
         const splitDocs = await generateDocs(docId);
 

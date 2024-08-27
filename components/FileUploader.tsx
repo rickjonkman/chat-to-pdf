@@ -4,11 +4,13 @@ import {useDropzone} from "react-dropzone";
 import {CheckCircleIcon, CircleArrowDown, HammerIcon, RocketIcon, SaveIcon} from "lucide-react";
 import {useRouter} from "next/navigation";
 import useUpload, {StatusText} from "@/hooks/useUpload";
+import {useToast} from "./ui/use-toast";
 
 const FileUploader = () => {
 
     const {progress, status, fileId, handleUpload} = useUpload();
     const router = useRouter();
+    const { toast } = useToast();
 
     useEffect(() => {
         if (fileId) {
@@ -19,9 +21,13 @@ const FileUploader = () => {
     const onDrop = useCallback(async (acceptedFiles: File[]) => {
         const file = acceptedFiles[0];
         if (file) {
-            // TODO: await handleUpload(file)
+            await handleUpload(file);
         } else {
-            //TODO: Toast
+            toast({
+                variant: "destructive",
+                title: "Error",
+                description: "No file found",
+            })
         }
     }, []);
 
